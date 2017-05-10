@@ -24,6 +24,10 @@
 *.lib
 
 # Executables
+main
 *.exe
 *.out
 *.app
+
+# Misc
+*.dSYM/*
