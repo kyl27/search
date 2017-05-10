@@ -3,6 +3,7 @@
 #include <map>
 #include <regex>
 #include <string>
+#include <ctime>
 
 using namespace std;
 
@@ -16,14 +17,18 @@ bool isTokenDelimiter(char c) {
     return c < 'a' || c > 'z';
 }
 
+bool isCamlDelimiter(char c) {
+    return c < 'A' || c > 'Z';
+}
+
 bool isWordDelimiter(char c) {
-    return isTokenDelimiter(c) && (c < 'A' || c > 'Z') && (c < '-' || c > ':') && c != '_';
+    return isTokenDelimiter(c) && isCamlDelimiter(c) && (c < '-' || c > ':') && c != '_';
 }
 
 void insertToken(Node *root, string token) {
-    for (int i = 0; i < token.length(); ++i) {
+    for (unsigned int i = 0; i < token.length(); ++i) {
         if (root->children.find(token[i]) == root->children.end()) {
-            root->children.emplace(token[i], new Node());
+            root->children.insert(make_pair(token[i], new Node()));
         }
         root = root->children[token[i]];
     }
@@ -31,11 +36,15 @@ void insertToken(Node *root, string token) {
 }
 
 void insertWord(Node *root, string word) {
-    for (int i = 0; i < word.length(); ++i) {
+    for (unsigned int i = 0; i < word.length(); ++i) {
         if (isTokenDelimiter(word[i])) {
-            insertToken(root, word.substr(i));
+            if (isCamlDelimiter(word[i])) {
+                insertToken(root, word.substr(i + 1));
+            } else {
+                insertToken(root, word.substr(i));
+            }
         }
-    }
+    } 
     insertToken(root, word);
 }
 
@@ -43,15 +52,15 @@ void printTerminals(Node *root, string& s) {
     if (root->terminal) {
         cout << s << endl;
     }
-    for (auto it : root->children) {
-        s += it.first;
-        printTerminals(it.second, s);
-        s.pop_back();
+    for (map<char, Node*>::iterator it = root->children.begin(); it != root->children.end(); ++it) {
+        s += it->first;
+        printTerminals(it->second, s);
+        s.erase(s.size() - 1, 1);
     }
 }
 
 bool query(Node *root, string query) {
-    for (int i = 0; i < query.length(); ++i) {
+    for (unsigned int i = 0; i < query.length(); ++i) {
         if (root->children.find(query[i]) != root->children.end()) {
             root = root->children.find(query[i])->second;
         } else {
@@ -66,8 +75,8 @@ bool query(Node *root, string query) {
 
 int countTokens(Node *root) {
     int count = root->terminal ? 1 : 0;
-    for (auto it : root->children) {
-        count += countTokens(it.second);
+    for (map<char, Node*>::iterator it = root->children.begin(); it != root->children.end(); ++it) {
+        count += countTokens(it->second);
     }
     return count;
 }
@@ -77,15 +86,15 @@ int main(int argc, char *argv[]) {
 
     string s (argv[1]);
     char c;
+    clock_t start = clock();
 
     ifstream file (s, ios::in);
     if (file.is_open()) {
-        while (!file.eof()) {
-            file.get(c);
-            if (isWordDelimiter(c)) {
+        while (file.get(c)) {
+            if (isWordDelimiter(c) && s.length()) {
                 insertWord(root, s);
                 s.clear();
-            } else {
+            } else if (c > ' ') {
                 s += c;
             }
         }
@@ -93,7 +102,9 @@ int main(int argc, char *argv[]) {
     } else {
         cout << "Failed to open file: " << s << endl;
     }
+    start = clock() - start;
 
+    cout << "Trie construction time (s) : " << (double) start / CLOCKS_PER_SEC << endl;
     cout << "Tokens added: " << countTokens(root) << endl;
 
     cout << "Input query:" << endl;

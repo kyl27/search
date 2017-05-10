@@ -1,5 +1,5 @@
-CC = clang++
-CFLAGS = -std=c++11 -stdlib=libc++ -ggdb -Wall -pthread
+CC = g++
+CFLAGS = -std=c++0x -ggdb -Wall -pthread
 LFLAGS =
 
 
