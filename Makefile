@@ -1,12 +1,12 @@
 CC = g++
 CFLAGS = -std=c++11 -ggdb -Wall -pthread
-LFLAGS = -lboost_system -lboost_filesystem -lpthread
+LFLAGS = -lpthread -lboost_filesystem -lboost_system
 
 
 all: main
 
 main: main.cpp
-	$(CC) $(CFLAGS) $(LFLAGS) -o main main.cpp
+	$(CC) main.cpp -o main $(CFLAGS) $(LFLAGS)
 
 clean:
 	rm -f *.o main
