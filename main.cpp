@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <set>
 #include <regex>
 #include <string>
 #include <vector>
@@ -12,11 +13,14 @@
 using namespace std;
 using namespace boost::filesystem;
 
+map<int, string> files;
 
 struct Node {
     map<char, Node*> children;
+    map<int, set<int> > occurrences;
     bool terminal;
 };
+
 
 bool isTokenDelimiter(char c) {
     return c < 'a' || c > 'z';
@@ -30,32 +34,38 @@ bool isWordDelimiter(char c) {
     return isTokenDelimiter(c) && isCamlDelimiter(c) && (c < '-' || c > ':') && c != '_';
 }
 
-void insertToken(Node *root, const string &token) {
+void insertToken(Node *root, const string &token, int fileIndex, int line) {
     for (size_t i = 0; i < token.length(); ++i) {
         if (root->children.find(token[i]) == root->children.end()) {
             root->children.emplace(token[i], new Node());
         }
         root = root->children[token[i]];
     }
+    root->occurrences[fileIndex].insert(line);
     root->terminal = true;
 }
 
-void insertWord(Node *root, const string &word) {
+void insertWord(Node *root, const string &word, int fileIndex, int line) {
     for (size_t i = 0; i < word.length(); ++i) {
         if (isTokenDelimiter(word[i])) {
             if (isCamlDelimiter(word[i])) {
-                insertToken(root, word.substr(i + 1));
+                insertToken(root, word.substr(i + 1), fileIndex, line);
             } else {
-                insertToken(root, word.substr(i));
+                insertToken(root, word.substr(i), fileIndex, line);
             }
         }
     }
-    insertToken(root, word);
+    insertToken(root, word, fileIndex, line);
 }
 
 void printTerminals(Node *root, string &s) {
     if (root->terminal) {
-        cout << s << endl;
+        for (auto it : root->occurrences) {
+            string &file = files[it.first];
+            for (auto it_line : it.second) {
+                cout << file << ':' << it_line << ':' << s << endl;
+            }
+        }
     }
     for (auto it : root->children) {
         s += it.first;
@@ -86,17 +96,22 @@ int countTokens(Node *root) {
     return count;
 }
 
-void indexFile(const string &filepath, Node *root) {
+void indexFile(const string &filepath, int fileIndex, Node *root) {
     char c;
     string s;
+    int line = 1;
     std::ifstream file (filepath, ios::in);
     if (file.is_open()) {
+        files.emplace(fileIndex, filepath);
         while (file.get(c) && c <= '~') {
             if (isWordDelimiter(c) && s.length()) {
-                insertWord(root, s);
+                insertWord(root, s, fileIndex, line);
                 s.clear();
             } else if (c > ' ') {
                 s += c;
+            }
+            if (c == '\n') {
+                ++line;
             }
         }
         file.close();
@@ -120,7 +135,7 @@ int iterateFiles(const string &path, Node *root) {
             ++it;
             continue;
         }
-        indexFile(it->path().string(), root);
+        indexFile(it->path().string(), numFiles, root);
         ++it;
         ++numFiles;
     }
