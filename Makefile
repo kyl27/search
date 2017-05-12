@@ -1,6 +1,6 @@
 CC = g++
-CFLAGS = -std=c++0x -ggdb -Wall -pthread
-LFLAGS =
+CFLAGS = -std=c++11 -ggdb -Wall -pthread
+LFLAGS = -lboost_system -lboost_filesystem -lpthread
 
 
 all: main

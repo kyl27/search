@@ -1,11 +1,15 @@
 #include <iostream>
-#include <fstream>
 #include <map>
 #include <regex>
 #include <string>
+#include <vector>
 #include <ctime>
 
+#include <boost/filesystem.hpp>
+#include <boost/range/iterator_range.hpp>
+
 using namespace std;
+using namespace boost::filesystem;
 
 
 struct Node {
@@ -25,18 +29,18 @@ bool isWordDelimiter(char c) {
     return isTokenDelimiter(c) && isCamlDelimiter(c) && (c < '-' || c > ':') && c != '_';
 }
 
-void insertToken(Node *root, string token) {
-    for (unsigned int i = 0; i < token.length(); ++i) {
+void insertToken(Node *root, const string &token) {
+    for (size_t i = 0; i < token.length(); ++i) {
         if (root->children.find(token[i]) == root->children.end()) {
-            root->children.insert(make_pair(token[i], new Node()));
+            root->children.emplace(token[i], new Node());
         }
         root = root->children[token[i]];
     }
     root->terminal = true;
 }
 
-void insertWord(Node *root, string word) {
-    for (unsigned int i = 0; i < word.length(); ++i) {
+void insertWord(Node *root, const string &word) {
+    for (size_t i = 0; i < word.length(); ++i) {
         if (isTokenDelimiter(word[i])) {
             if (isCamlDelimiter(word[i])) {
                 insertToken(root, word.substr(i + 1));
@@ -44,23 +48,23 @@ void insertWord(Node *root, string word) {
                 insertToken(root, word.substr(i));
             }
         }
-    } 
+    }
     insertToken(root, word);
 }
 
-void printTerminals(Node *root, string& s) {
+void printTerminals(Node *root, string &s) {
     if (root->terminal) {
         cout << s << endl;
     }
-    for (map<char, Node*>::iterator it = root->children.begin(); it != root->children.end(); ++it) {
-        s += it->first;
-        printTerminals(it->second, s);
-        s.erase(s.size() - 1, 1);
+    for (auto it : root->children) {
+        s += it.first;
+        printTerminals(it.second, s);
+        s.pop_back();
     }
 }
 
-bool query(Node *root, string query) {
-    for (unsigned int i = 0; i < query.length(); ++i) {
+bool query(Node *root, string &query) {
+    for (size_t i = 0; i < query.length(); ++i) {
         if (root->children.find(query[i]) != root->children.end()) {
             root = root->children.find(query[i])->second;
         } else {
@@ -75,22 +79,18 @@ bool query(Node *root, string query) {
 
 int countTokens(Node *root) {
     int count = root->terminal ? 1 : 0;
-    for (map<char, Node*>::iterator it = root->children.begin(); it != root->children.end(); ++it) {
-        count += countTokens(it->second);
+    for (auto it : root->children) {
+        count += countTokens(it.second);
     }
     return count;
 }
 
-int main(int argc, char *argv[]) {
-    Node *root = new Node();
-
-    string s (argv[1]);
+void indexFile(const string &filepath, Node *root) {
     char c;
-    clock_t start = clock();
-
-    ifstream file (s, ios::in);
+    string s;
+    std::ifstream file (filepath, ios::in);
     if (file.is_open()) {
-        while (file.get(c)) {
+        while (file.get(c) && c <= '~') {
             if (isWordDelimiter(c) && s.length()) {
                 insertWord(root, s);
                 s.clear();
@@ -102,9 +102,41 @@ int main(int argc, char *argv[]) {
     } else {
         cout << "Failed to open file: " << s << endl;
     }
+}
+
+int iterateFiles(const string &path, Node *root) {
+    int numFiles = 0;
+    cout << "Root path: " << path << endl;
+    recursive_directory_iterator it(path), end;
+    while (it != end)
+    {
+        if (it->path().stem().string().length() == 0 || is_symlink(*it)) {
+            it.no_push();
+            ++it;
+            continue;
+        } else if (is_directory(*it)) {
+            cout << "Processing directory: " << it->path().string() << endl;
+            ++it;
+            continue;
+        }
+        indexFile(it->path().string(), root);
+        ++it;
+        ++numFiles;
+    }
+    return numFiles;
+}
+
+int main(int argc, char *argv[]) {
+    Node *root = new Node();
+
+    string s (argv[1]);
+    clock_t start = clock();
+    iterateFiles(s, root);
     start = clock() - start;
 
-    cout << "Trie construction time (s) : " << (double) start / CLOCKS_PER_SEC << endl;
+    cout << "Trie construction time (s) : "
+         << (double) start / CLOCKS_PER_SEC << endl;
+
     cout << "Tokens added: " << countTokens(root) << endl;
 
     cout << "Input query:" << endl;
