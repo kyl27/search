@@ -62,9 +62,21 @@ void insertWord(const string &word, int fileIndex, int line) {
 void printTerminals(Node *n, string &s) {
     if (n->terminal) {
         for (auto it : n->occurrences) {
-            string &file = files[it.first];
-            for (auto it_line : it.second) {
-                cout << file << ':' << it_line << ':' << s << endl;
+            string &filepath = files[it.first];
+            std::ifstream file (filepath, ios::in);
+            if (file.is_open()) {
+                int lineNo = 0;
+                string line;
+                for (auto it_line : it.second) {
+                    while (lineNo != it_line) {
+                        ++lineNo;
+                        getline(file, line);
+                    }
+                    cout << filepath << ':' << it_line << ':' << line << endl;
+                }
+                file.close();
+            } else {
+                cout << "Failed to open file: " << filepath << endl;
             }
         }
     }
