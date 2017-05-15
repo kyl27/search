@@ -2,9 +2,7 @@
 #include <fstream>
 #include <map>
 #include <set>
-#include <regex>
 #include <string>
-#include <vector>
 #include <ctime>
 
 #include <boost/filesystem.hpp>
@@ -19,7 +17,7 @@ struct Node {
     bool terminal;
 };
 
-long tokens, newTokens;
+long tokens, newTokens, totalFiles;
 map<long, string> files;
 Node *root;
 
@@ -113,14 +111,6 @@ bool query(Node *n, string &query) {
     return true;
 }
 
-long countTokens(Node *n) {
-    long count = n->terminal ? 1 : 0;
-    for (auto it : n->children) {
-        count += countTokens(it.second);
-    }
-    return count;
-}
-
 void indexFile(const string &filepath, long fileIndex) {
     char c;
     string s;
@@ -156,7 +146,8 @@ long iterateFiles(const string &path) {
         } else if (is_directory(*it)) {
             cout << "Indexing subdirectory: " << it->path().string() << endl;
         } else {
-            indexFile(it->path().string(), numFiles);
+            indexFile(it->path().string(), totalFiles);
+            ++totalFiles;
             ++numFiles;
         }
         ++it;
@@ -185,8 +176,9 @@ int main(int argc, char *argv[]) {
 
             cout << newTokens << " tokens added from "
                  << numFiles << " files in "
-                 << (double) start / CLOCKS_PER_SEC << " seconds " << endl;
-            cout << "Total unique tokens: " << tokens << endl;
+                 << (double) start / CLOCKS_PER_SEC << " seconds." << endl;
+            cout << "Total: " << tokens << " tokens in "
+                 << totalFiles << " files." << endl;
         } else if (s == "query" && cin >> s) {
             query(root, s);
         } else {
